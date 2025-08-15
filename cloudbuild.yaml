@@ -1,0 +1,74 @@
+steps:
+
+# Build Step
+- id: "build"
+  name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/artifact-scanning-repo/sample-image:latest', '.']
+  waitFor: ['-']
+
+# Push to Artifact Registry
+- id: "push"
+  name: 'gcr.io/cloud-builders/docker'
+  args: ['push',  '${_REGION}-docker.pkg.dev/${PROJECT_ID}/artifact-scanning-repo/sample-image:latest']
+
+# Run a vulnerability scan
+- id: scan
+  name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    (gcloud artifacts docker images scan \
+    ${_REGION}-docker.pkg.dev/${PROJECT_ID}/artifact-scanning-repo/sample-image:latest \
+    --location us \
+    --format="value(response.scan)") > /workspace/scan_id.txt
+
+# Analyze the result of the scan
+- id: severity check
+  name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+      gcloud artifacts docker images list-vulnerabilities $(cat /workspace/scan_id.txt) \
+      --format="value(vulnerability.effectiveSeverity)" | if grep -Fxq CRITICAL; \
+      then echo "Failed vulnerability check for CRITICAL level" && exit 1; else echo \
+      "No CRITICAL vulnerability found, congrats !" && exit 0; fi
+
+# Sign the image only if the previous severity check passes
+- id: 'create-attestation'
+  name: 'gcr.io/${PROJECT_ID}/binauthz-attestation:latest'
+  args:
+    - '--artifact-url'
+    - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/artifact-scanning-repo/sample-image:latest'
+    - '--attestor'
+    - 'vulnerability-attestor'
+    - '--keyversion'
+    - 'projects/${PROJECT_ID}/locations/global/keyRings/binauthz-keys/cryptoKeys/lab-key/cryptoKeyVersions/1'
+
+# Re-tag the image for production and push it to the production repository
+- id: "push-to-prod"
+  name: 'gcr.io/cloud-builders/docker'
+  args: 
+    - 'tag' 
+    - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/artifact-scanning-repo/sample-image:latest'
+    - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/artifact-prod-repo/sample-image:latest'
+- id: "push-to-prod-final"
+  name: 'gcr.io/cloud-builders/docker'
+  args: ['push', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/artifact-prod-repo/sample-image:latest']
+
+# Deploy to Cloud Run
+- id: 'deploy-to-cloud-run'
+  name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    gcloud run deploy auth-service --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/artifact-prod-repo/sample-image:latest \
+    --binary-authorization=default --region=${_REGION} --allow-unauthenticated
+
+images:
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/artifact-scanning-repo/sample-image:latest
+
+substitutions:
+  _REGION: us-central1
