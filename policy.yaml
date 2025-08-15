@@ -1,0 +1,7 @@
+defaultAdmissionRule:
+  requireAttestationsBy:
+  - projects/PROJECT_ID/attestors/vulnerability-attestor
+  enforcementMode: ENFORCED_BLOCK_AND_AUDIT_LOG
+  evaluationMode: REQUIRE_ATTESTATION
+globalPolicyEvaluationMode: ENABLE
+name: projects/PROJECT_ID/policy
