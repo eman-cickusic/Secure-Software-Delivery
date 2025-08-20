@@ -2,7 +2,7 @@
 
 This guide provides all the commands and files needed to complete the GSP521 Secure Software Delivery Challenge Lab.
 
-## Prerequisites
+## Prerequisites 
 
 - Google Cloud Project with billing enabled
 - Cloud Shell access
