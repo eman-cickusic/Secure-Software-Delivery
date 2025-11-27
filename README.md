@@ -6,7 +6,7 @@ This guide provides all the commands and files needed to complete the GSP521 Sec
 
 - Google Cloud Project with billing enabled
 - Cloud Shell access
-- Lab environment activated
+- Lab environment activated 
 
 ## Task 1: Enable APIs and Set Up Environment
 
