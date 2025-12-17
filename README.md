@@ -10,7 +10,7 @@ This guide provides all the commands and files needed to complete the GSP521 Sec
 
 ## Task 1: Enable APIs and Set Up Environment
 
-### 1.1 Enable Required APIs
+### 1.1 Enable Required APIs 
 ```bash
 gcloud services enable \
   cloudkms.googleapis.com \
